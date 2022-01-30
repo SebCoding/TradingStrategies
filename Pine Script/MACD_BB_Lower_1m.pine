@@ -1,0 +1,49 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © cryptos72
+
+//@version=5
+indicator("MACD_BB_Lower_1m", timeframe='')
+
+// Getting inputs
+src = input(title="Source", defval=close, group='MACD')
+fast_length = input(title="Fast Length", defval=12, group='MACD')
+slow_length = input(title="Slow Length", defval=26, group='MACD')
+signal_length = input.int(title="Signal Smoothing",  minval = 1, maxval = 50, defval = 9, group='MACD')
+sma_source = input.string(title="Oscillator MA Type",  defval="EMA", options=["SMA", "EMA"], group='MACD')
+sma_signal = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"], group='MACD')
+
+bb_length = input.int(34, minval=1, title='Length (number of bars)', group='Bollinger Bands')
+bb_mult = input.float(1, minval=0.001, maxval=50, title='Mult (standard deviation factor)', group='Bollinger Bands')
+
+// MACD Plot colors
+col_macd = input(#2962FF, "MACD Line  ", inline="MACD", group='MACD')
+col_signal = input(#FF6D00, "Signal Line  ", inline="Signal", group='MACD')
+col_grow_above = input(#26A69A, "Above   Grow", inline="Above", group='MACD')
+col_fall_above = input(#B2DFDB, "Fall", inline="Above", group='MACD')
+col_grow_below = input(#FFCDD2, "Below Grow", inline="Below", group='MACD')
+col_fall_below = input(#FF5252, "Fall", inline="Below", group='MACD')
+
+// Function to calculate macd and bb in 1m timeframe
+get_macd_bb(src, fast_length, slow_length, signal_length, bb_length, bb_mult) =>
+    [macdLine, signalLine, histLine] = ta.macd(src, fast_length, slow_length, signal_length)
+    // Bollinger Bands
+    basis = ta.ema(histLine, bb_length)
+    dev = bb_mult * ta.stdev(histLine, bb_length)
+    upper = basis + dev
+    lower = basis - dev
+    [histLine, lower, upper]
+    
+    
+[histLine, lower, upper] = request.security(syminfo.tickerid, '1', get_macd_bb(src, fast_length, slow_length, signal_length, bb_length, bb_mult))
+
+// Plot MACD
+plot(histLine, title="Histogram", style=plot.style_columns, color=(histLine>=0 ? (histLine[1] < histLine ? col_grow_above : col_fall_above) : (histLine[1] < histLine ? col_grow_below : col_fall_below)))
+// plot(macd, title="MACD", color=col_macd)
+// plot(signal, title="Signal", color=col_signal)
+
+// Plot BB
+//plot(basis, title='BB Basis', color=color.new(color.black, 70))
+p1 = plot(upper, title='BB Upper', color=color.new(color.aqua, 50))
+p2 = plot(lower, title='BB Lower', color=color.new(color.aqua, 50))
+fill(p1, p2, title='BB Background', color=color.new(color.black, 95))
+

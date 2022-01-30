@@ -1,0 +1,86 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © cryptos72
+
+//@version=5
+strategy(
+     "UltimateScalper", 
+     overlay=true, 
+     initial_capital=10000,
+     commission_type=strategy.commission.percent,
+     commission_value=0,
+     slippage=0)
+
+// Getting inputs
+
+// Trade Settings Input
+tradeAmountInput = input(title='Trade Amount', defval=10000, group='Trade Settings')
+tpPctInput = input(title='TakeProfit %', defval=1.5, group='Trade Settings')
+slPctInput = input(title='StopLoss %', defval=0.8, group='Trade Settings')
+
+// EMA Input
+emaFastInput = input(title='EMA Fast', defval=9, group='EMA')
+emaSlowInput = input(title='EMA Slow', defval=55, group='EMA')
+emaTrendInput = input(title='EMA Trend', defval=200, group='EMA')
+
+// RSI Input
+rsiPeriodsInput = input(title='Periods', defval=14, group='RSI')
+rsiLowInput = input(title='Low', defval=49, group='RSI')
+rsiHighInput = input(title='High', defval=51, group='RSI')
+
+// MACD Input
+srcInput = input(title="Source", defval=close, group='MACD')
+fastLengthInput = input(title="Fast Length", defval=12, group='MACD')
+slowLengthInput = input(title="Slow Length", defval=26, group='MACD')
+signalLengthInput = input.int(title="Signal Smoothing",  minval = 1, maxval = 50, defval = 9, group='MACD')
+smaSourceInput = input.string(title="Oscillator MA Type",  defval="EMA", options=["SMA", "EMA"], group='MACD')
+smaSignalInput = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"], group='MACD')
+
+// Bollinger Bands Input
+bbLengthInput = input.int(34, minval=1, title='Length (number of bars)', group='Bollinger Bands')
+bbMultInput = input.float(1, minval=0.001, maxval=50, title='Mult (standard deviation factor)', group='Bollinger Bands')
+
+// Function to calculate macd and bb in 1m timeframe
+get_macd_bb(src, fast_length, slow_length, signal_length, bb_length, bb_mult) =>
+    [macdLine, signalLine, histLine] = ta.macd(src, fast_length, slow_length, signal_length)
+    // Bollinger Bands
+    basis = ta.ema(histLine, bb_length)
+    dev = bb_mult * ta.stdev(histLine, bb_length)
+    upper = basis + dev
+    lower = basis - dev
+    [histLine, lower, upper]
+
+// Calculations
+emaFast = ta.ema(close, emaFastInput)
+emaSlow = ta.ema(close, emaSlowInput)
+emaTrend = ta.ema(close, emaTrendInput)
+rsi = ta.rsi(close, rsiPeriodsInput)
+[histLine, bb_lower, bb_upper] = request.security(syminfo.tickerid, '1', get_macd_bb(srcInput, fastLengthInput, slowLengthInput, signalLengthInput, bbLengthInput, bbMultInput))
+
+// PLot EMA
+plot(emaFast, "emaFast", color=color.blue)
+plot(emaSlow, "emaSlow", color=color.green)
+plot(emaTrend, "emaTrend", color=color.yellow)
+
+// Entry Signals
+longSignal  = (emaFast > emaSlow) and (emaSlow > emaTrend) and (rsi > rsiHighInput) and (histLine <= bb_lower)
+shortSignal = (emaFast < emaSlow) and (emaSlow < emaTrend) and (rsi < rsiLowInput)  and (histLine >= bb_upper)
+// Plotting Entry Signals
+plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
+plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
+
+// Calculate size of trade
+trade_qty = tradeAmountInput / close
+
+
+// Trade Entries
+strategy.entry("LongEntry", strategy.long, qty=trade_qty, when=longSignal)
+strategy.entry("ShortEntry", strategy.short, qty=trade_qty, when=shortSignal)
+
+// Trade Exits
+long_tp_amount = close + (close * tpPctInput / 100)
+long_sl_amount = close - (close * slPctInput / 100)
+short_tp_amount = close - (close * tpPctInput / 100)
+short_sl_amount = close + (close * slPctInput / 100)
+strategy.exit("ExitLong", "LongEntry", qty_percent=100, limit=long_tp_amount, stop=long_sl_amount)
+strategy.exit("ExitShort", "ShortEntry", qty_percent=100, limit=short_tp_amount, stop=short_sl_amount)
+

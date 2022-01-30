@@ -1,0 +1,9 @@
+// Tips
+// The two techniques we use most frequently to debug our Pine code are:
+
+// to plot variables of type float, int or bool in the indicator’s values and the Data Window
+plotchar(v, "v", "", location.top, size = size.tiny)
+
+// and the one-line version of our print() function to debug strings:
+print(txt) => var _label = label.new(bar_index, na, txt, xloc.bar_index, yloc.price, color(na), label.style_none, color.gray, size.large, text.align_left), label.set_xy(_label, bar_index, ta.highest(10)[1]), label.set_text(_label, txt)
+print(stringName)

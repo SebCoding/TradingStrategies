@@ -1,0 +1,115 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © cryptos72
+
+//@version=5
+strategy(
+     "ScalpEmaRsiAdx", 
+     overlay=true, 
+     initial_capital=10000,
+     commission_type=strategy.commission.percent,
+     commission_value=0,
+     slippage=0)
+
+// Input Paramaters
+// use_date_range = input.bool(false, "Toggle to Use Date Range Parameters")
+// start_date = input.time(timestamp("2022-01-01T00:00:00"), "Start Date")
+// end_date = input.time(timestamp("2022-01-01T00:00:00"), "End Date")
+
+trade_amount = input(10000, "Trade Amount")
+profit_pct = input(0.3, "TakeProfit %")
+loss_pct = input(0.3, "StopLoss %")
+
+ema_periods = input(50, "EMA Periods")
+rsi_periods = input(3, "RSI Periods")
+rsi_signal_min = input(30, "RSI Signal Min")
+rsi_signal_max = input(70, "RSI Signal Max")
+rsi_entry_min = input(30, "RSI Entry Min")
+rsi_entry_max = input(70, "RSI Entry Max")
+di_periods = input(5, "DI Periods")
+adx_smooth_periods = input(5, "ADX Smoothing Periods")
+adx_threshold = input(30, "ADX Threshold")
+
+// Check if we need to use date range and if we are inside the date range
+//inDateRange = (not use_date_range) or (time >= start_date and time < end_date)
+
+// Calculate size of trade
+trade_qty = trade_amount / close
+
+// Calculate Indicators
+ema = ta.ema(close, ema_periods)
+rsi = ta.rsi(close, rsi_periods)
+[diplus, diminus, adx] = ta.dmi(di_periods, adx_smooth_periods)
+
+// Plot EMA. Cannot plot RSI and ADX because we are in overlay mode
+plot(ema, "EMA")
+
+// Signals
+longSignal = strategy.position_size == 0
+             and close > ema 
+             and rsi < rsi_signal_min 
+             and adx > adx_threshold
+             
+shortSignal = strategy.position_size == 0
+             and close < ema 
+             and rsi > rsi_signal_max 
+             and adx > adx_threshold
+             
+plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
+plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
+
+// Entries
+longEntry = strategy.position_size == 0
+             and close > ema
+             and rsi > rsi_entry_min 
+             and adx > adx_threshold 
+             and longSignal[1]
+             
+shortEntry = strategy.position_size == 0 
+             and close < ema 
+             and rsi < rsi_entry_max 
+             and adx > adx_threshold 
+             and shortSignal[1]
+             
+// plotarrow(longEntry, colorup=color.green, maxheight=10)
+// plotarrow(shortEntry, colordown=color.red, maxheight=10)
+
+
+//TP & SL
+float long_tp_amount = na
+float long_sl_amount = na
+float short_tp_amount = na
+float short_sl_amount = na
+float entry_amount = na
+long_tp_amount := longEntry ? close + (close * profit_pct / 100): long_tp_amount[1]
+long_sl_amount := longEntry ? close - (close * loss_pct / 100): long_sl_amount[1]
+short_tp_amount := shortEntry ? close - (close * profit_pct / 100): short_tp_amount[1]
+short_sl_amount := shortEntry ? close + (close * loss_pct / 100): short_sl_amount[1]
+entry_amount := longEntry or shortEntry ? close: entry_amount[1]
+
+// Trade Exits
+strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=long_tp_amount, stop=long_sl_amount)
+strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=short_tp_amount, stop=short_sl_amount)
+
+// Trade Entries
+strategy.entry("LongEntry", strategy.long, qty=trade_qty, when=longEntry)
+strategy.entry("ShortEntry", strategy.short, qty=trade_qty, when=shortEntry)
+
+
+// Plot trade boxes to show tp/sl zones in reg/green
+// We are using (strategy.position_size[1] == 0) to draw for an extra candle, up to the closing candle
+zero_line_p = plot(strategy.position_size == 0 and strategy.position_size[1] == 0 ? na : entry_amount, color=color.gray, style=plot.style_linebr, linewidth=1)
+
+long_sl_p = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : long_sl_amount, color=color.red, style=plot.style_linebr, linewidth=1)
+long_tp_p = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : long_tp_amount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zero_line_p, long_sl_p, color=color.new(color.red, 90))
+fill(zero_line_p, long_tp_p, color=color.new(color.green, 90))
+
+short_sl_p = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : short_sl_amount, color=color.red, style=plot.style_linebr, linewidth=1)
+short_tp_p = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : short_tp_amount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zero_line_p, short_sl_p, color=color.new(color.red, 90))
+fill(zero_line_p, short_tp_p, color=color.new(color.green, 90))
+
+
+
+
+

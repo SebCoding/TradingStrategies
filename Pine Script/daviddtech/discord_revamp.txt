@@ -1,0 +1,250 @@
+-Events-
+
+=====================
+-Server stats-
+=====================
+> clock london
+in order to have a better understading for hosted voice chats schedule
+
+> Members
+all members
+
+> Bots
+
+
+=====================
+-Information-
+=====================
+> welcome
+locked
+moderator+ to view new users joining
+
+> getting started
+locked
+patreon/crypto/paypal joining
+link discord to patreon
+how to do adduser
+redirect to scripts access, faq, release notes, resources etc.
+
+> scripts access
+place where /adduser magic happens
+specify that once every new update it's needed to do again
+
+> release notes  
+locked
+new strategy links
+settings within video
+optimizer updates
+bot wars
+python bot
+upcoming stuff updates
+
+> community rules
+locked
+
+> faq zone
+locked
+optimizer complete tutorial
+python bot complete tutorial
+bot wars complete tutorial
+also show where people should see the scripts, 2 screenshots needed
+how to share settings via optimizer and tradingview bot
+hosted voice chats schedule
+known issues like optimizer only on english tv
+best settings myth
+reminder for timeframe, exchange and coinpair when trying someone else's settings
+more..
+
+> resources
+locked
+stuff that you found useful regarding crypto, trading and coding
+
+> testimonials
+
+> social media
+locked
+our social media zone
+posts brought by bots
+youtube, facebook, twitter, tiktok, instagram
+
+> activity contest
+locked
+
+> disclaimer
+locked
+
+> bug hunt
+locked
+monday form for bugs
+
+
+=====================
+-Strategies-
+=====================
+>sharing strats settings
+people who want to share their settings share and chat about them
+
+>strategy features requests
+locked
+monday form posted here
+
+>new strategy requests
+
+>best settings competition
+
+=====================
+-VIP Zone-
+=====================
+VIP tends to become for general, we should consider VVIP
+ 
+>chat
+
+>suggest a strategy
+should have some higher importance, if introducing voting should have 5x importance or so
+
+>pinescript snippets
+keep it as it is 
+VVIP scenario: update this more, and add more stuff. like after a few months should post a big chunk of code of an old strategy from time to time
+
+>voice chat
+hang in there for a bit from time
+VVIP scenario: after hosted voice chat stay there more. get in there, mute yourself and code in there strategies. remember to now show stuff like dashboard etc.
+
+=====================
+-General-
+=====================
+>general chat
+where all talk
+
+>off topic
+not related to trading
+
+>beta testers chat
+basically beta testers, davidd vladislavnmp thamer steve marcob bad vho
+throw us a new bone from time to time
+
+>support chat
+me and you only, easy to see by you 
+
+=====================
+-Optimizer-
+=====================
+>how to
+locked
+link
+from faq
+
+>database
+locked
+VIP+ only
+properties locked to 1000$, 100% capital, 0.05 fee, slippage 1
+the entries uploaded should be with % net profitable so we can scan the good ones better idk?
+
+=====================
+-Bot Wars-
+=====================
+>how to
+locked
+link
+from faq
+
+=====================
+-Python bot- (we should think for a name)
+=====================
+>how to
+locked
+link
+from faq
+
+=====================
+-Developer talks-
+=====================
+>code
+code talks
+>other works
+other than code, idk
+
+=====================
+-Botting services- ->contact them, 100$/month for hosting their name here?
+=====================
+>tradelab.ai
+>finandy
+>3commas
+>alertatron
+>wunderbit
+>cornix
+>capitalize.ai
+>zignaly
+>autoview
+
+=====================
+-Exchanges- -> contact other ones, 100$/month for hosting their name here?
+=====================
+>Coinzix
+>Bybit
+>Binance
+>FTX
+>Coinbase
+
+=====================
+-News bots-
+=====================
+>api connectors
+locked
+bot
+
+>crypto news
+locked
+bot
+
+>exchange alerts
+locked
+bot
+
+>liquidation alerts
+locked
+bot
+
+>whale alerts
+locked
+bot
+
+=====================
+-Referral links- 
+=====================
+put disclaimer that we only offer a coupon code, nothing more related than that to each
+
+>tradingview
+>etc
+
+=====================
+-Voice channels-
+=====================
+>past livestreams
+vip only, the long ones that we're doing atm should be on FAQ for whole public
+>voice channel
+>voice channel
+>voice channel admin
+mod+
+>afk
+place where afk go
+
+=====================
+-ADs- 
+=====================
+ad place for whatever, who wants to be promoted should be here whatever he sells 
+50/100$ or more?
+
+>ad1
+>ad2
+>ad3
+
+=====================
+-Admin area-
+mod+
+=====================
+>staff announcements
+>staff chat
+>server logs
+
+
