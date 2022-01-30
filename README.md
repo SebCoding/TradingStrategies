@@ -1,2 +1,2 @@
 # TradingStrategies
-Trading View Pine Script Custom Strategies and Indicators
+[TradingView](https://www.tradingview.com) Pine Script Custom Strategies and Indicators
