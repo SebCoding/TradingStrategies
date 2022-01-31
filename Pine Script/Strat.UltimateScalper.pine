@@ -14,10 +14,12 @@ strategy(
 
 // Trade Settings Input
 tradeAmountInput = input(title='Trade Amount', defval=10000, group='Trade Settings')
-tpPctInput = input(title='TakeProfit %', defval=1.5, group='Trade Settings')
+tpPctInput = input(title='TakeProfit %', defval=0.9, group='Trade Settings')
 slPctInput = input(title='StopLoss %', defval=0.8, group='Trade Settings')
 
 // EMA Input
+emaMode = input.string(title="EMA Mode", defval="3 EMA", options=["3 EMA", "1 EMA (Trend)"], group='EMA')
+emaMode := emaMode == "3 EMA" ? '3EMA': '1EMA'
 emaFastInput = input(title='EMA Fast', defval=9, group='EMA')
 emaSlowInput = input(title='EMA Slow', defval=55, group='EMA')
 emaTrendInput = input(title='EMA Trend', defval=200, group='EMA')
@@ -26,6 +28,11 @@ emaTrendInput = input(title='EMA Trend', defval=200, group='EMA')
 rsiPeriodsInput = input(title='Periods', defval=14, group='RSI')
 rsiLowInput = input(title='Low', defval=49, group='RSI')
 rsiHighInput = input(title='High', defval=51, group='RSI')
+
+// ADX Input
+adxLengthInput = input(title='Length', defval=14, group='ADX')
+//adxSmoothingPeriodsInput = input(title='Smoothing Periods', defval=14, group='ADX')
+adxThresholdInput = input(title='Threshold', defval=0, group='ADX')
 
 // MACD Input
 srcInput = input(title="Source", defval=close, group='MACD')
@@ -36,8 +43,8 @@ smaSourceInput = input.string(title="Oscillator MA Type",  defval="EMA", options
 smaSignalInput = input.string(title="Signal Line MA Type", defval="EMA", options=["SMA", "EMA"], group='MACD')
 
 // Bollinger Bands Input
-bbLengthInput = input.int(34, minval=1, title='Length (number of bars)', group='Bollinger Bands')
-bbMultInput = input.float(1, minval=0.001, maxval=50, title='Mult (standard deviation factor)', group='Bollinger Bands')
+bbLengthInput = input.int(34, minval=1, title='Length (number of bars)', group='MACD Histogram Bollinger Bands')
+bbMultInput = input.float(1, minval=0.001, maxval=50, title='Mult (standard deviation factor)', group='MACD Histogram Bollinger Bands')
 
 // Function to calculate macd and bb in 1m timeframe
 get_macd_bb(src, fast_length, slow_length, signal_length, bb_length, bb_mult) =>
@@ -56,14 +63,49 @@ emaTrend = ta.ema(close, emaTrendInput)
 rsi = ta.rsi(close, rsiPeriodsInput)
 [histLine, bb_lower, bb_upper] = request.security(syminfo.tickerid, '1', get_macd_bb(srcInput, fastLengthInput, slowLengthInput, signalLengthInput, bbLengthInput, bbMultInput))
 
+// Calculate ADX manually, seems like ta.dmi() returns an invalid adx value
+// Inavlid adx values => [diplus, diminus, adx] = ta.dmi(adxLengthInput, adxSmoothingPeriodsInput)
+TrueRange = math.max(math.max(high-low, math.abs(high-nz(close[1]))), math.abs(low-nz(close[1])))
+DirectionalMovementPlus = high-nz(high[1]) > nz(low[1])-low ? math.max(high-nz(high[1]), 0): 0
+DirectionalMovementMinus = nz(low[1])-low > high-nz(high[1]) ? math.max(nz(low[1])-low, 0): 0
+
+SmoothedTrueRange = 0.0
+SmoothedTrueRange := nz(SmoothedTrueRange[1]) - (nz(SmoothedTrueRange[1])/adxLengthInput) + TrueRange
+
+SmoothedDirectionalMovementPlus = 0.0
+SmoothedDirectionalMovementPlus := nz(SmoothedDirectionalMovementPlus[1]) - (nz(SmoothedDirectionalMovementPlus[1])/adxLengthInput) + DirectionalMovementPlus
+
+SmoothedDirectionalMovementMinus = 0.0
+SmoothedDirectionalMovementMinus := nz(SmoothedDirectionalMovementMinus[1]) - (nz(SmoothedDirectionalMovementMinus[1])/adxLengthInput) + DirectionalMovementMinus
+
+DIPlus = SmoothedDirectionalMovementPlus / SmoothedTrueRange * 100
+DIMinus = SmoothedDirectionalMovementMinus / SmoothedTrueRange * 100
+DX = math.abs(DIPlus-DIMinus) / (DIPlus+DIMinus)*100
+adx = ta.sma(DX, adxLengthInput)
+
+
 // PLot EMA
 plot(emaFast, "emaFast", color=color.blue)
 plot(emaSlow, "emaSlow", color=color.green)
 plot(emaTrend, "emaTrend", color=color.yellow)
+plotchar(rsi, "rsi", "", location.top, size = size.tiny)
+plotchar(adx, "adx", "", location.top, size = size.tiny)
 
 // Entry Signals
-longSignal  = (emaFast > emaSlow) and (emaSlow > emaTrend) and (rsi > rsiHighInput) and (histLine <= bb_lower)
-shortSignal = (emaFast < emaSlow) and (emaSlow < emaTrend) and (rsi < rsiLowInput)  and (histLine >= bb_upper)
+longSignal = strategy.position_size == 0
+             and rsi > rsiHighInput
+             and histLine <= bb_lower
+             and adx >= adxThresholdInput
+             and ((emaMode == '3EMA' and emaFast > emaSlow and emaSlow > emaTrend) or 
+                  (emaMode == '1EMA' and close > emaTrend))
+             
+shortSignal = strategy.position_size == 0
+             and rsi < rsiLowInput
+             and histLine >= bb_upper
+             and adx >= adxThresholdInput
+             and ((emaMode == '3EMA' and emaFast < emaSlow and emaSlow < emaTrend) or 
+                  (emaMode == '1EMA' and close < emaTrend))
+             
 // Plotting Entry Signals
 plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
 plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
@@ -71,16 +113,39 @@ plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", st
 // Calculate size of trade
 trade_qty = tradeAmountInput / close
 
+//TP & SLlongSignal
+float longTPAmount = na
+float longSLAmount = na
+float shortTPAmount = na
+float shortSLAmount = na
+float entryAmount = na
+longTPAmount := longSignal ? close + (close * tpPctInput / 100): longTPAmount[1]
+longSLAmount := longSignal ? close - (close * slPctInput / 100): longSLAmount[1]
+shortTPAmount := shortSignal ? close - (close * tpPctInput / 100): shortTPAmount[1]
+shortSLAmount := shortSignal ? close + (close * slPctInput / 100): shortSLAmount[1]
+entryAmount := longSignal or shortSignal ? close: entryAmount[1]
+
+// Trade Exits
+strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=longTPAmount, stop=longSLAmount)
+strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=shortTPAmount, stop=shortSLAmount)
 
 // Trade Entries
 strategy.entry("LongEntry", strategy.long, qty=trade_qty, when=longSignal)
 strategy.entry("ShortEntry", strategy.short, qty=trade_qty, when=shortSignal)
 
-// Trade Exits
-long_tp_amount = close + (close * tpPctInput / 100)
-long_sl_amount = close - (close * slPctInput / 100)
-short_tp_amount = close - (close * tpPctInput / 100)
-short_sl_amount = close + (close * slPctInput / 100)
-strategy.exit("ExitLong", "LongEntry", qty_percent=100, limit=long_tp_amount, stop=long_sl_amount)
-strategy.exit("ExitShort", "ShortEntry", qty_percent=100, limit=short_tp_amount, stop=short_sl_amount)
+
+// Plot trade boxes to show tp/sl zones in reg/green
+// We are using (strategy.position_size[1] == 0) to draw for an extra candle, up to the closing candle
+zeroLinePlot = plot(strategy.position_size == 0 and strategy.position_size[1] == 0 ? na : entryAmount, color=color.gray, style=plot.style_linebr, linewidth=1)
+
+longSLPlot = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : longSLAmount, color=color.red, style=plot.style_linebr, linewidth=1)
+longTPPlot = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : longTPAmount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zeroLinePlot, longSLPlot, color=color.new(color.red, 90))
+fill(zeroLinePlot, longTPPlot, color=color.new(color.green, 90))
+
+shortSLPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : shortSLAmount, color=color.red, style=plot.style_linebr, linewidth=1)
+shortTPPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : shortTPAmount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zeroLinePlot, shortSLPlot, color=color.new(color.red, 90))
+fill(zeroLinePlot, shortTPPlot, color=color.new(color.green, 90))
+
 
