@@ -1,0 +1,113 @@
+//@version=5
+//Simple strategy based on MACD and Bollinger Bands, where BBs are calculatend from macd signal.
+strategy(
+     "Strategy MACD vs BB(Seb)", 
+      overlay=false, 
+      pyramiding=0,
+      initial_capital=10000,
+      default_qty_type=strategy.percent_of_equity,
+      default_qty_value=100
+      )
+      
+// Exit Strategy Inputs
+exitStrategyType = input.string(
+     title= 'How to Exit the Trades', 
+     defval='On Next Trade Entry', 
+     options=['On Next Trade Entry', 'TP/SL Fixed %', 'TP/SL ATR Factor'], 
+     group='Exit Strategy'
+     )
+
+// Fixed % TP/SL
+fixedPctExitGroup = 'Fixed % - Take Profit / Stop Loss'
+tpPctInput = input.float(title='Take Profit %', defval=1.1, group=fixedPctExitGroup, minval=0, step=0.1)
+slPctInput = input.float(title='Stop Loss %', defval=1.1, group=fixedPctExitGroup, minval=0, step=0.1)
+
+// ATR Factor TP/SL
+atrFactorExitGroup = 'ATR Factor - Take Profit / Stop Loss'
+atrFactorTPInput = input.float(title='Take Profit (ATR Factor)', defval=3.0, group=atrFactorExitGroup, minval=0.0, step=0.1, 
+                     tooltip='The take profit will be calculated using the value entered multiplied by the ATR')
+atrFactorSLInput = input.float(title='Stop Loss (ATR Factor)', defval=2.0, group=atrFactorExitGroup, minval=0.0, step=0.1,
+                     tooltip='The stop loss will be calculated using the value entered multiplied by the ATR')
+atrLengthInput = input.int(title='ATR Indicator Length', defval=14, group=atrFactorExitGroup, step=1)
+
+fast_length = input.int(title="Fast MA period", defval=2, group='Moving Averages')
+slow_length = input.int(title="Slow MA period", defval=11, group='Moving Averages')
+src = input(close,"Source", group='Moving Averages')
+
+
+// ----------MA calculation - ChartArt-------------
+smoothinput = input.string('SMA', title='Moving Average Calculation', options=['SMA', 'EMA', 'WMA', 'Linear'])
+
+fast_ma = smoothinput == 'SMA' ? ta.sma(src, fast_length):smoothinput == 'EMA' ? ta.ema(src, fast_length):smoothinput == 'WMA' ? ta.wma(src, fast_length):smoothinput == 'Linear' ? ta.linreg(src, fast_length,0): na
+slow_ma = smoothinput == 'SMA' ? ta.sma(src, slow_length):smoothinput == 'EMA' ? ta.ema(src, slow_length):smoothinput == 'WMA' ? ta.wma(src, slow_length):smoothinput == 'Linear' ? ta.linreg(src, slow_length,0): na
+//----------------------------------------------
+macd = fast_ma - slow_ma
+p1=plot(macd,"macd signal",color=color.blue)
+length = input.int(40, minval=1)
+mult = input.float(2.0,"BB multiplier")
+
+basis = ta.sma(macd, length)
+dev = mult * ta.stdev(macd, length)
+plot(basis,"BB basis",color=color.gray)
+upper = basis + dev
+lower = basis - dev
+p2=plot(upper,"BB upper",color=color.red)
+p3=plot(lower,"BB basis",color=color.green)
+//fill(p2, p3, color=color.new(color.fuchsia, 95))
+
+// longCondition = strategy.position_size == 0 and ta.crossover(macd, lower)
+// shortCondition = strategy.position_size == 0 and ta.crossunder(macd, upper)
+longCondition = ta.crossover(macd, lower)
+shortCondition = ta.crossunder(macd, upper)
+
+plotshape(longCondition?lower:na, title="LongEntry", style=shape.diamond, location=location.absolute, text="Long", color=color.new(color.green, 0), size=size.tiny)
+plotshape(shortCondition?upper:na, title="ShortEntry", style=shape.diamond, location=location.absolute, text="Short", color=color.new(color.red, 0), size=size.tiny)
+fill(p1, p3, color=macd<lower ? color.new(color.green, 70): na, title="support")
+fill(p1, p2, color=macd>upper ? color.new(color.red, 70): na, title="resistance")
+
+
+// ======================================================================================================
+
+longSignal = longCondition
+shortSignal = shortCondition
+
+tradeQty = strategy.equity / close
+
+// Trade Entries
+strategy.entry("LongEntry", strategy.long, qty=tradeQty, when=longSignal)
+strategy.entry("ShortEntry", strategy.short, qty=tradeQty, when=shortSignal)
+
+//TP & SLlongSignal
+float longTPAmount = na
+float longSLAmount = na
+float shortTPAmount = na
+float shortSLAmount = na
+float entryAmount = na
+
+plotchar(strategy.position_size, "strategy.position_size", "", location.top, size = size.tiny)
+
+if exitStrategyType == 'TP/SL Fixed %'
+    longTPAmount := longSignal ? close + (close * tpPctInput / 100): longTPAmount[1]
+    longSLAmount := longSignal ? close - (close * slPctInput / 100): longSLAmount[1]
+    shortTPAmount := shortSignal ? close - (close * tpPctInput / 100): shortTPAmount[1]
+    shortSLAmount := shortSignal ? close + (close * slPctInput / 100): shortSLAmount[1]
+    
+if exitStrategyType == 'TP/SL ATR Factor'
+    atr = ta.atr(atrLengthInput)
+    longTPAmount := longSignal ? close + (atrFactorTPInput * atr * syminfo.mintick): longTPAmount[1]
+    longSLAmount := longSignal ? close - (atrFactorSLInput * atr * syminfo.mintick): longSLAmount[1]
+    shortTPAmount := shortSignal ? close - (atrFactorTPInput * atr * syminfo.mintick): shortTPAmount[1]
+    shortSLAmount := shortSignal ? close + (atrFactorSLInput * atr * syminfo.mintick): shortSLAmount[1]
+
+entryAmount := longSignal or shortSignal ? close: entryAmount[1]
+
+// Trade Exits
+if exitStrategyType != 'On Next Trade Entry'
+    strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=longTPAmount, stop=longSLAmount)
+    strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=shortTPAmount, stop=shortSLAmount)
+    
+    
+    
+    
+    
+    
