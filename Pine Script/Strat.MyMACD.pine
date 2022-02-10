@@ -1,0 +1,86 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © cryptos72
+
+//@version=5
+strategy("Strat.MyMACD",
+      overlay=true, 
+      pyramiding=0,
+      initial_capital=10000,
+      default_qty_type=strategy.percent_of_equity,
+      default_qty_value=100
+      )
+      
+// Fixed % TP/SL
+fixedPctExitGroup = 'Fixed % - Take Profit / Stop Loss'
+tpPctInput = input.float(title='Take Profit %', defval=0.8, group=fixedPctExitGroup, minval=0, step=0.1)
+slPctInput = input.float(title='Stop Loss %', defval=0.8, group=fixedPctExitGroup, minval=0, step=0.1)
+      
+emaInput = input.int(title='EMA', defval=200, minval=0, group='EMA')
+
+src = input(title="Source", defval=close, group='MACD')
+fast_length = input(title="Fast Length", defval=12, group='MACD')
+slow_length = input(title="Slow Length", defval=26, group='MACD')
+signal_length = input.int(title="Signal Smoothing",  minval = 1, maxval = 50, defval = 9, group='MACD')
+
+ema = ta.ema(close, emaInput)
+plot(ema, title='EMA', color=color.blue)
+
+[macdLine, signalLine, histLine] = ta.macd(src, fast_length, slow_length, signal_length)
+
+
+longSignal = strategy.position_size == 0 and close > ema and signalLine < 0 and ta.crossunder(signalLine, macdLine)
+shortSignal = strategy.position_size == 0 and close < ema and signalLine > 0 and ta.crossover(signalLine, macdLine)
+
+// Plotting Entry Signals
+// plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
+// plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
+
+// Calculate size of trade
+//tradeQty = tradeAmountInput / close
+tradeQty = strategy.equity / close
+
+//TP & SLlongSignal
+float longTPAmount = na
+float longSLAmount = na
+float shortTPAmount = na
+float shortSLAmount = na
+float entryAmount = na
+
+longTPAmount := longSignal ? close + (close * tpPctInput / 100): longTPAmount[1]
+longSLAmount := longSignal ? close - (close * slPctInput / 100): longSLAmount[1]
+shortTPAmount := shortSignal ? close - (close * tpPctInput / 100): shortTPAmount[1]
+shortSLAmount := shortSignal ? close + (close * slPctInput / 100): shortSLAmount[1]
+
+entryAmount := longSignal or shortSignal ? close: entryAmount[1]
+
+// Trade Entries
+strategy.entry("LongEntry", strategy.long, qty=tradeQty, when=longSignal)
+strategy.entry("ShortEntry", strategy.short, qty=tradeQty, when=shortSignal)
+
+// Trade Exits
+strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=longTPAmount, stop=longSLAmount)
+strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=shortTPAmount, stop=shortSLAmount)
+
+// Plot values for debugging in data panel
+plotchar(macdLine, "macdLine", "", location.top, size = size.tiny)
+plotchar(signalLine, "signalLine", "", location.top, size = size.tiny)
+plotchar(histLine, "histLine", "", location.top, size = size.tiny)
+plotchar(longTPAmount, "longTPAmount", "", location.top, size = size.tiny)
+plotchar(longSLAmount, "longSLAmount", "", location.top, size = size.tiny)
+plotchar(shortTPAmount, "shortTPAmount", "", location.top, size = size.tiny)
+plotchar(shortSLAmount, "shortSLAmount", "", location.top, size = size.tiny)
+
+// Plot trade boxes to show tp/sl zones in reg/green
+// We are using (strategy.position_size[1] == 0) to draw for an extra candle, up to the closing candle
+zeroLinePlot = plot(strategy.position_size == 0 and strategy.position_size[1] == 0 ? na : entryAmount, color=color.gray, style=plot.style_linebr, linewidth=1)
+
+longSLPlot = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : longSLAmount, color=color.red, style=plot.style_linebr, linewidth=1)
+longTPPlot = plot(strategy.position_size <= 0 and strategy.position_size[1] <= 0 ? na : longTPAmount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zeroLinePlot, longSLPlot, color=color.new(color.red, 90))
+fill(zeroLinePlot, longTPPlot, color=color.new(color.green, 90))
+
+shortSLPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : shortSLAmount, color=color.red, style=plot.style_linebr, linewidth=1)
+shortTPPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : shortTPAmount, color=color.green, style=plot.style_linebr, linewidth=1)
+fill(zeroLinePlot, shortSLPlot, color=color.new(color.red, 90))
+fill(zeroLinePlot, shortTPPlot, color=color.new(color.green, 90))
+
