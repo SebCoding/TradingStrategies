@@ -1,0 +1,85 @@
+// This source code is subject to the terms of the Mozilla Public License 2.0 at https://mozilla.org/MPL/2.0/
+// © cryptos72
+
+//@version=5
+strategy(
+     "Strat.HA_VWAP", 
+     overlay=true, 
+     initial_capital=10000,
+     commission_type=strategy.commission.percent,
+     commission_value=0,
+     slippage=0
+     )
+
+distFromVWAPInput = input.float(title='Distance from VWAP in Price %', defval=0.2, step=0.05, group='VWAP Distance')
+
+// Fixed % TP/SL
+fixedPctExitGroup = 'Fixed % - Take Profit / Stop Loss'
+enableTPSLInput = input.bool(defval=false, title='Enable Additionnal TP/SL', group=fixedPctExitGroup)
+tpPctInput = input.float(title='Take Profit %', defval=2, group=fixedPctExitGroup, minval=0, step=0.1)
+slPctInput = input.float(title='Stop Loss %', defval=2, group=fixedPctExitGroup, minval=0, step=0.1)
+
+heikinashi_open = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open)
+heikinashi_close = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close)
+
+//plot(close, title='Heikin Ashi', color=color.orange, linewidth=2)
+
+vwap = ta.vwap(close)
+plot(vwap, title='VWAP', color=color.yellow, linewidth=2)
+
+longSignal =  strategy.position_size == 0
+              and vwap > heikinashi_close 
+              and ((vwap-heikinashi_close) / heikinashi_close * 100) > distFromVWAPInput 
+              and heikinashi_close > heikinashi_close[1]
+              and heikinashi_close > heikinashi_open[1]
+              and strategy.position_size[1] == 0
+              and vwap[1] > heikinashi_close[1] 
+              and ((vwap[1]-heikinashi_close[1]) / heikinashi_close[1] * 100) > distFromVWAPInput 
+              and heikinashi_close[1] > heikinashi_close[2]
+              and heikinashi_close[1] > heikinashi_open[2]
+
+              
+shortSignal = strategy.position_size == 0
+              and vwap < heikinashi_close 
+              and ((heikinashi_close-vwap) / heikinashi_close * 100) > distFromVWAPInput
+              and heikinashi_close < heikinashi_close[1]
+              and heikinashi_close < heikinashi_open[1]
+              and strategy.position_size[1] == 0
+              and vwap[1] < heikinashi_close[1] 
+              and ((heikinashi_close[1]-vwap[1]) / heikinashi_close[1] * 100) > distFromVWAPInput
+              and heikinashi_close[1] < heikinashi_close[2]
+              and heikinashi_close[1] < heikinashi_open[2]
+              
+shortSignal := shortSignal and shortSignal[1]
+
+
+plotshape(longSignal ? close: na, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
+plotshape(shortSignal ? close: na, color=color.red, location=location.abovebar, text='S', style=shape.diamond, size=size.tiny)
+
+tradeQty = strategy.equity / close
+
+//TP & SLlongSignal
+float longTPAmount = na
+float longSLAmount = na
+float shortTPAmount = na
+float shortSLAmount = na
+float entryAmount = na
+
+
+longTPAmount := longSignal ? close + (close * tpPctInput / 100): longTPAmount[1]
+longSLAmount := longSignal ? close - (close * slPctInput / 100): longSLAmount[1]
+shortTPAmount := shortSignal ? close - (close * tpPctInput / 100): shortTPAmount[1]
+shortSLAmount := shortSignal ? close + (close * slPctInput / 100): shortSLAmount[1]
+
+// Trade Entries
+strategy.entry("LongEntry", strategy.long, qty=tradeQty, when=longSignal)
+strategy.entry("ShortEntry", strategy.short, qty=tradeQty, when=shortSignal)
+
+// Trade Exits
+if enableTPSLInput
+    strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=longTPAmount, stop=longSLAmount)
+    strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=shortTPAmount, stop=shortSLAmount)
+
+// Trade closes
+strategy.close(id="LongEntry", when=close >= vwap)
+strategy.close(id="ShortEntry", when=close <= vwap)

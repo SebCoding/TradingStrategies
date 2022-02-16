@@ -35,16 +35,16 @@ emaSlowInput = input(title='EMA Slow', defval=55, group='EMA')
 emaTrendInput = input(title='EMA Trend', defval=200, group='EMA')
 
 // RSI Inputs
-rsiEnabled = input.bool(false, "Enable", group='RSI')
-rsiPeriodsInput = input(title='Periods', defval=2, group='RSI')
-rsiLowInput = input(title='Low', defval=48, group='RSI')
-rsiHighInput = input(title='High', defval=52, group='RSI')
+rsiEnabled = input.bool(true, "Enable", group='RSI')
+rsiPeriodsInput = input(title='Periods', defval=4, group='RSI')
+rsiLowInput = input(title='Low', defval=19, group='RSI')
+rsiHighInput = input(title='High', defval=81, group='RSI')
 
 // ADX Inputs
 adxEnabled = input.bool(true, "Enable", group='ADX')
-adxLengthInput = input(title='Length', defval=3, group='ADX')
+adxLengthInput = input(title='Length', defval=17, group='ADX')
 //adxSmoothingPeriodsInput = input(title='Smoothing Periods', defval=14, group='ADX')
-adxThresholdInput = input(title='Threshold', defval=66, group='ADX')
+adxThresholdInput = input(title='Threshold', defval=24, group='ADX')
 
 // MACD Inputs
 macdGroup = 'MACD (1min Timeframe)'
@@ -130,15 +130,15 @@ plot(emaTrend, "emaTrend", color=color.yellow)
 plotchar(rsi, "RSI", "", location.top, size = size.tiny)
 plotchar(adx, "ADX", "", location.top, size = size.tiny)
 plotchar(atr, "ATR", "", location.top, size = size.tiny)
-plotchar(histLine, "MACD Histogram", "", location.top, size = size.tiny)
-plotchar(bbUpper, "MACD Histogram: BB Upper", "", location.top, size = size.tiny)
-plotchar(bbLower, "MACD Histogram: BB Lower", "", location.top, size = size.tiny)
-plotchar(posSMA, "MACD Histogram: SMA +", "", location.top, size = size.tiny)
-plotchar(negSMA, "MACD Histogram: SMA -", "", location.top, size = size.tiny)
+plotchar(histLine, "MACD Hist", "", location.top, size = size.tiny)
+plotchar(bbUpper, "BB Upper", "", location.top, size = size.tiny)
+plotchar(bbLower, "BB Lower", "", location.top, size = size.tiny)
+// plotchar(posSMA, "MACD Histogram: SMA +", "", location.top, size = size.tiny)
+// plotchar(negSMA, "MACD Histogram: SMA -", "", location.top, size = size.tiny)
 
 // Entry Signals
 longSignal = strategy.position_size == 0
-             and ((not rsiEnabled) or (rsi > rsiHighInput))
+             and ((not rsiEnabled) or (rsi > rsiLowInput))
              and ((not adxEnabled) or (adx >= adxThresholdInput))
              and ((emaMode == '3EMA' and emaFast > emaSlow and emaSlow > emaTrend) or 
                   (emaMode == '1EMA' and close > emaTrend))
@@ -146,7 +146,7 @@ longSignal = strategy.position_size == 0
              and ((not macdOverSMAEnabled) or (histLine <= negSMA))
              
 shortSignal = strategy.position_size == 0
-             and ((not rsiEnabled) or (rsi < rsiLowInput))
+             and ((not rsiEnabled) or (rsi < rsiHighInput))
              and ((not adxEnabled) or (adx >= adxThresholdInput))
              and ((emaMode == '3EMA' and emaFast < emaSlow and emaSlow < emaTrend) or 
                   (emaMode == '1EMA' and close < emaTrend))
@@ -154,8 +154,8 @@ shortSignal = strategy.position_size == 0
              and ((not macdOverSMAEnabled) or (histLine >= posSMA))
                           
 // Plotting Entry Signals
-plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
-plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
+// plotshape(longSignal, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
+// plotshape(shortSignal, color=color.red, location=location.abovebar, text="S", style=shape.diamond, size=size.tiny)
 
 // Calculate size of trade
 //tradeQty = tradeAmountInput / close
@@ -191,10 +191,10 @@ strategy.exit("LongExit", "LongEntry", qty_percent=100, limit=longTPAmount, stop
 strategy.exit("ShortExit", "ShortEntry", qty_percent=100, limit=shortTPAmount, stop=shortSLAmount)
 
 // Plot TP/SL values for debugging in data panel
-plotchar(longTPAmount, "longTPAmount", "", location.top, size = size.tiny)
-plotchar(longSLAmount, "longSLAmount", "", location.top, size = size.tiny)
-plotchar(shortTPAmount, "shortTPAmount", "", location.top, size = size.tiny)
-plotchar(shortSLAmount, "shortSLAmount", "", location.top, size = size.tiny)
+// plotchar(longTPAmount, "longTPAmount", "", location.top, size = size.tiny)
+// plotchar(longSLAmount, "longSLAmount", "", location.top, size = size.tiny)
+// plotchar(shortTPAmount, "shortTPAmount", "", location.top, size = size.tiny)
+// plotchar(shortSLAmount, "shortSLAmount", "", location.top, size = size.tiny)
 
 // Plot trade boxes to show tp/sl zones in reg/green
 // We are using (strategy.position_size[1] == 0) to draw for an extra candle, up to the closing candle
@@ -209,3 +209,5 @@ shortSLPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 
 shortTPPlot = plot(strategy.position_size >= 0 and strategy.position_size[1] >= 0 ? na : shortTPAmount, color=color.green, style=plot.style_linebr, linewidth=1)
 fill(zeroLinePlot, shortSLPlot, color=color.new(color.red, 90))
 fill(zeroLinePlot, shortTPPlot, color=color.new(color.green, 90))
+
+
