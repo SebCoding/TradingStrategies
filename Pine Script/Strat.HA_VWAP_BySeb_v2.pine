@@ -11,22 +11,29 @@ strategy(
      slippage=0
      )
 
-distFromVWAPInput = input.float(title='Distance from VWAP in Price %', defval=0.2, step=0.05, group='VWAP Distance')
-nbSignalInput = input.int(title='Signals Before Entry', defval=1, minval=1, maxval=4, step=1)
+distFromVWAPInput = input.float(title='Distance from VWAP in Price %', defval=0.0, step=0.05, group='VWAP Distance')
+nbSignalInput = input.int(title='Signals Before Entry', defval=2, minval=1, maxval=4, step=1)
+
+enableEMAInput = input.bool(defval=true, title='Trade According to EMA Trend', group='EMA')
+emaLengthInput = input.int(title='EMA Length', defval=200, minval=1, step=1, group='EMA')
 
 // Fixed % TP/SL
 fixedPctExitGroup = 'Fixed % - Take Profit / Stop Loss'
-enableTPSLInput = input.bool(defval=false, title='Enable Additionnal TP/SL', group=fixedPctExitGroup)
-tpPctInput = input.float(title='Take Profit %', defval=2, group=fixedPctExitGroup, minval=0, step=0.1)
-slPctInput = input.float(title='Stop Loss %', defval=2, group=fixedPctExitGroup, minval=0, step=0.1)
+enableTPSLInput = input.bool(defval=true, title='Enable Additionnal TP/SL', group=fixedPctExitGroup)
+tpPctInput = input.float(title='Take Profit %', defval=7.0, group=fixedPctExitGroup, minval=0, step=0.1)
+slPctInput = input.float(title='Stop Loss %', defval=7.0, group=fixedPctExitGroup, minval=0, step=0.1)
 
+
+ema = ta.ema(close, emaLengthInput)
 heikinashi_open = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, open)
 heikinashi_close = request.security(ticker.heikinashi(syminfo.tickerid), timeframe.period, close)
 
 //plot(close, title='Heikin Ashi', color=color.orange, linewidth=2)
 
-vwap = ta.vwap(close)
+vwap = ta.vwap(hlc3)
 plot(vwap, title='VWAP', color=color.yellow, linewidth=2)
+
+plot(enableEMAInput ? ema: na, title='EMA', color=color.blue, linewidth=2)
 
 distanceFromVWAP = math.abs((vwap-heikinashi_close) / heikinashi_close * 100)
 plotchar(distanceFromVWAP, "Distance from VWAP", "", location.top, size = size.tiny)
@@ -36,11 +43,8 @@ longSignal =  strategy.position_size == 0
               and distanceFromVWAP > distFromVWAPInput 
               and heikinashi_close > heikinashi_close[1]
               and heikinashi_close > heikinashi_open[1]
-            //   and strategy.position_size[1] == 0
-            //   and heikinashi_close[1] < vwap[1] 
-            //   and distanceFromVWAP[1] > distFromVWAPInput 
-            //   and heikinashi_close[1] > heikinashi_close[2]
-            //   and heikinashi_close[1] > heikinashi_open[2]
+              and (not enableEMAInput or close > ema)
+
 
               
 shortSignal = strategy.position_size == 0
@@ -48,11 +52,8 @@ shortSignal = strategy.position_size == 0
               and distanceFromVWAP > distFromVWAPInput
               and heikinashi_close < heikinashi_close[1]
               and heikinashi_close < heikinashi_open[1]
-            //   and strategy.position_size[1] == 0
-            //   and heikinashi_close[1] > vwap[1] 
-            //   and distanceFromVWAP[1] > distFromVWAPInput
-            //   and heikinashi_close[1] < heikinashi_close[2]
-            //   and heikinashi_close[1] < heikinashi_open[2]
+              and (not enableEMAInput or close < ema)
+
               
 
 plotshape(longSignal ? close: na, color=color.green, location=location.belowbar, text='L', style=shape.diamond, size=size.tiny)
